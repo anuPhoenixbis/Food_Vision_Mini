@@ -27,26 +27,46 @@ model = load_model()
 transform = models.EfficientNet_B2_Weights.DEFAULT.transforms()
 
 # UI
-st.title("🍕🥩🍣 FoodVision Mini Classifier")
+st.title("🍕🥩🍣 FoodVision Mini: What's on your plate?")
 st.write("Upload an image of pizza, steak or sushi. The model will predict what it is.")
 
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload an image of pizza, steak, or sushi (JPG, JPEG, PNG):", type=["jpg", "jpeg", "png"])
+
+with st.expander("About this App"):
+    st.write("""
+    This app uses a machine learning model to classify images of food items like pizza, steak, or sushi.
+    It uses a pre-trained EfficientNet-B2 model.
+    This is a mini version for demonstration purposes and works best with clear images of pizza, steak, or sushi. It may not be accurate for other food items or complex images.
+    """)
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    
+    col1, col2 = st.columns(2)
 
-    with st.spinner("Classifying..."):
-        # Preprocess and predict
-        input_tensor = transform(image).unsqueeze(0)
+    with col1:
+        st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    with col2:
+        with st.spinner("Classifying..."):
+            # Preprocess and predict
+            input_tensor = transform(image).unsqueeze(0)
         with torch.inference_mode():
             outputs = model(input_tensor)
             probs = torch.softmax(outputs, dim=1).squeeze()
 
         # Show results
-        for i in range(len(class_names)):
-            st.write(f"**{class_names[i].capitalize()}**: {probs[i].item():.4f}")
-        
-        st.success(f"Prediction: {class_names[probs.argmax()]}")
+        # Create a DataFrame for the bar chart
+        import pandas as pd
+        chart_data = pd.DataFrame(
+            probs.numpy(),
+            index=class_names
+        )
+        st.bar_chart(chart_data)
+
+        # Display top prediction and confidence
+        top_prob, top_cat_idx = torch.max(probs, dim=0)
+        top_class_name = class_names[top_cat_idx]
+        st.success(f"Predicted: {top_class_name.capitalize()} (Confidence: {top_prob.item():.4f})")
 
  
